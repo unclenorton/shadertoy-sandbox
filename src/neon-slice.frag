@@ -5,6 +5,14 @@ float circleShape (vec2 position, float innerRadius, float outerRadius) {
         - smoothstep(outerRadius, outerRadius + thickness, length(position));
 }
 
+float diskShape (vec2 position, float radius) {
+    return smoothstep(radius, radius+0.01, length(position));
+}
+
+// Courtesy of http://www.science-and-fiction.org/rendering/noise.html
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
@@ -12,6 +20,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     // create pixel coordinates
 	vec2 uv = fragCoord.xy / iResolution.xy;
+    
+    vec4 pic = texture(iChannel1,uv);
     
     vec2 ctr = uv - vec2(0.5,0.5);
     // Make it a circle by applying the aspect ratio
@@ -27,20 +37,34 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float wave = texelFetch( iChannel0, ivec2(tx,1), 0 ).x;
     
     
+    
     // Draw the lines
  	vec4 fillColor = vec4(0.5,0.5,0.5,1.0);
     
     float diagonal = (sqrt(pow(iResolution.x, 2.) + pow(iResolution.y, 2.)));
 
-    float gradientRed = round(cos(1000. / 10. * (xy.x + xy.y) / diagonal ));
-    float gradientBlue = smoothstep(0.5, 0.6, (sin(1000. / 1. * (xy.x - xy.y) / diagonal)));
+    float gradientRed = round(cos(wave * 0.8 + 100. * (xy.x + xy.y) / diagonal ));
+    float gradientBlue = smoothstep(0.5, 0.6, (sin(1000. * (xy.x - xy.y) / diagonal)));
 
-    fillColor.r = abs(cos(gradientRed + iTime)); 
+    fillColor.r = abs(cos(gradientRed + iTime));
+    
     fillColor.g = abs(cos(gradientBlue + iTime)) / 1.5;
     fillColor.b = ((cos(gradientBlue + iTime)));
+
+    // Switch to monochrome
+    // fillColor.g = fillColor.b = fillColor.r;
     
     // Draw the circle
-    fillColor -= circleShape(ctr, 0.25, 0.255);
+    float innerRadius = rand(vec2(100.0, iTime))/ 300.0 + 0.3 + (sin(iTime * .5)) / 40.0;
+    innerRadius += wave/10.00;
+    
+    float outerRadius = innerRadius + 0.005;
+    fillColor -= sign(sin(iTime)) * circleShape(ctr, innerRadius, outerRadius);
+    
+    float diskColor = diskShape(ctr, innerRadius);
+    
+    
+    fillColor /= diskColor;
     
     
     fragColor = fillColor;
