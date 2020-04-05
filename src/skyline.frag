@@ -1,45 +1,26 @@
 // Based off https://www.shadertoy.com/view/4tXSRM
 
+#iChannel0 "file://peaks.frag"
+#iChannel1 "file://triangle.frag"
+
 #define MAX_DEPTH 20
-#define PI 3.14159265359
-#define TWO_PI 6.28318530718
 
 // Courtesy of http://www.science-and-fiction.org/rendering/noise.html
 float noise(vec2 p) {
 	return fract(sin(dot(p.xy ,vec2(12.9898,78.233))) * 456367.5453);
 }
 
-float getTriangle(vec2 p, vec2 rp){
-    p *= vec2(iResolution.x, iResolution.y);
-    p /= max(iResolution.x, iResolution.y);
-    
-    p -= rp;
-
-    vec3 color = vec3(0.0);
-    float d = 0.0;
-
-    // Remap the space to -1. to 1.
-    p = p * 2. - 1.;
-
-    // Number of sides of your shape
-    int N = 2 + int(floor(abs(cos(iTime) * 10.)/2.));
-
-    // Angle and radius from the current pixel
-    float a = atan(p.x,p.y)+PI;
-    float r = TWO_PI/float(N);
-
-    // Shaping function that modulate the distance
-    d = cos(floor(.5+a/r)*r-a)*length(p);
-
-    return smoothstep(.15,d,0.)-smoothstep(.145,d, 0.);
-}
-
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // Scale coordinates to [0, 1]
 	vec2 p = fragCoord.xy / iResolution.xy;
     
-    vec3 vCol = vec3(0.);
+    vec4 vCol = vec4(0.);
+    vec4 peaks = vec4(1.);
+    
     // Start from the back buildings and work forward, so buildings in the front cover the ones in the back
+    
+    int shootingLevel = int(floor(noise(vec2(float(iFrame))) * float(MAX_DEPTH)));
+    
 	for (int i = 1; i < MAX_DEPTH; i++) {
         // This is really "inverse" depth since we start from the back
 		float depth = float(i);
@@ -56,18 +37,23 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 		if (p.y <= threshold) {
             if (threshold - p.y < 0.001) {
                 // Draw the lights on top
-                vCol = vec3(1., 0.9, 0.2) * noise(vec2(p.y));
+                vCol = vec4(1., 0.9, 0.2, 1.0) * noise(vec2(p.y));
             } else {
                 // Generate a randomised base color
-                vec3 randomColor = vec3(noise(vec2(step / 50.))*.7, 0.1, noise(vec2(step / 10.))*1.25);
+                vec4 randomColor = vec4(noise(vec2(step / 50.))*.7, 0.1, noise(vec2(step / 10.))*1.25, 1.0);
                 // Apply the color as a gradient
-				vCol = randomColor * vec3(depth / 6. * p.y) * noise(vec2(step));
+				vCol = randomColor * vec4(depth / 6. * p.y) * noise(vec2(step));
             }
 		}
 
         if (i == 7) {
-            vec3 triangle = getTriangle(p, vec2(0.0, 0.03 + sin(iTime)/10.)) * vec3(2.0, 30.0, 2.0) * 2.0;
-            vCol += vec3(triangle);
+            vec4 triangle = texelFetch(iChannel1, ivec2(fragCoord),0);
+            vCol += vec4(triangle);
+        }
+        
+        if (i == shootingLevel + 1) {
+        	peaks = texelFetch(iChannel0, ivec2(fragCoord),0);
+        	vCol += vec4(peaks.x, peaks.y * noise(vec2(step/10.)), peaks.z * 0.15, 0.);
         }
 	}
     
