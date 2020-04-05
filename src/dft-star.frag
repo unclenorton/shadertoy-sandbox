@@ -27,6 +27,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     vec4 pic = texture(iChannel1,uv);
     
+    
     vec2 ctr = uv - vec2(0.5,0.5);
     // Make it a circle by applying the aspect ratio
     ctr.x *= iResolution.x / iResolution.y;
